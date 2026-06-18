@@ -6,6 +6,7 @@ use crate::executor_interface::{
 use log::trace;
 use std::cell::RefCell;
 use std::ffi::c_void;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use wasmer_vm::platform_init;
@@ -17,20 +18,20 @@ pub fn force_sighandler_reinstall() {
 }
 
 pub struct WasmerExecutorData {
-    vm_hooks: Arc<dyn VMHooksLegacy + Send + Sync>,
+    vm_hooks: Rc<dyn VMHooksLegacy>,
     opcode_cost: Arc<Mutex<OpcodeCost>>,
 }
 
 impl WasmerExecutorData {
-    pub fn new(vm_hooks: Box<dyn VMHooksLegacy + Send + Sync>) -> Self {
+    pub fn new(vm_hooks: Box<dyn VMHooksLegacy>) -> Self {
         Self {
-            vm_hooks: Arc::from(vm_hooks),
+            vm_hooks: Rc::from(vm_hooks),
             opcode_cost: Arc::new(Mutex::new(OpcodeCost::default())),
         }
     }
 
     fn set_vm_hooks_ptr(&mut self, vm_hooks_ptr: *mut c_void) -> Result<(), ExecutorError> {
-        if let Some(vm_hooks) = Arc::get_mut(&mut self.vm_hooks) {
+        if let Some(vm_hooks) = Rc::get_mut(&mut self.vm_hooks) {
             vm_hooks.set_vm_hooks_ptr(vm_hooks_ptr);
             Ok(())
         } else {
@@ -47,13 +48,13 @@ impl WasmerExecutorData {
 }
 
 pub struct WasmerExecutor {
-    data: Arc<RefCell<WasmerExecutorData>>,
+    data: Rc<RefCell<WasmerExecutorData>>,
 }
 
 impl WasmerExecutor {
-    pub fn new(vm_hooks: Box<dyn VMHooksLegacy + Send + Sync>) -> Self {
+    pub fn new(vm_hooks: Box<dyn VMHooksLegacy>) -> Self {
         Self {
-            data: Arc::new(RefCell::new(WasmerExecutorData::new(vm_hooks))),
+            data: Rc::new(RefCell::new(WasmerExecutorData::new(vm_hooks))),
         }
     }
 }

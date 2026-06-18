@@ -19,13 +19,9 @@ pub fn with_service<R, F: FnOnce(&mut dyn ExecutorService) -> R>(f: F) -> R {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use std::sync::Mutex;
-
-    pub static LAST_ERROR_TEST_MUTEX: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_singleton_last_error() {
-        let _guard = LAST_ERROR_TEST_MUTEX.lock().unwrap();
         const SAMPLE_ERROR: &str = "sample error";
         with_service(|service| service.update_last_error_str(SAMPLE_ERROR.to_string()));
         let last_error = with_service(|service| service.get_last_error_string());

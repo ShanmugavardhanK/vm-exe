@@ -8,7 +8,6 @@ use std::ffi::c_void;
 
 use multiversx_chain_vm_executor::{MemLength, MemPtr};
 
-use crate::capi_mem_conversion::{mem_length_to_i32, mem_ptr_to_i32};
 use crate::capi_vm_hook_pointers::vm_exec_vm_hook_c_func_pointers;
 
 #[derive(Debug)]
@@ -26,11 +25,11 @@ impl CapiVMHooks {
     }
 
     fn convert_mem_ptr(&self, mem_ptr: MemPtr) -> i32 {
-        mem_ptr_to_i32(mem_ptr)
+        mem_ptr as i32
     }
 
     fn convert_mem_length(&self, mem_length: MemLength) -> i32 {
-        mem_length_to_i32(mem_length)
+        mem_length as i32
     }
 }
 
@@ -550,14 +549,6 @@ impl multiversx_chain_vm_executor::VMHooksLegacy for CapiVMHooks {
 
     fn managed_is_builtin_function(&self, function_name_handle: i32) -> i32 {
         (self.c_func_pointers_ptr.managed_is_builtin_function_func_ptr)(self.vm_hooks_ptr, function_name_handle)
-    }
-
-    fn managed_drwa_sync_mirror(&self, payload_handle: i32) -> i32 {
-        (self.c_func_pointers_ptr.managed_drwa_sync_mirror_func_ptr)(self.vm_hooks_ptr, payload_handle)
-    }
-
-    fn managed_drwa_native_governance_query(&self, query_type: i32, key_handle: i32, dest_handle: i32) -> i32 {
-        (self.c_func_pointers_ptr.managed_drwa_native_governance_query_func_ptr)(self.vm_hooks_ptr, query_type, key_handle, dest_handle)
     }
 
     fn big_float_new_from_parts(&self, integral_part: i32, fractional_part: i32, exponent: i32) -> i32 {

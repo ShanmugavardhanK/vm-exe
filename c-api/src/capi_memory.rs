@@ -2,7 +2,11 @@
 
 use meta::capi_safe_unwind;
 
-use crate::{capi_instance::vm_exec_instance_t, service_singleton::with_service, vm_exec_result_t};
+use crate::{
+    capi_instance::{CapiInstance, vm_exec_instance_t},
+    service_singleton::with_service,
+    vm_exec_result_t,
+};
 use std::ptr;
 
 /// Gets the size in bytes of the memory data.
@@ -18,8 +22,7 @@ use std::ptr;
 pub unsafe extern "C" fn vm_exec_instance_memory_data_length(
     instance_ptr: *mut vm_exec_instance_t,
 ) -> u64 {
-    let capi_instance = cast_capi_instance_ptr!(instance_ptr, 0);
-    let _operation_guard = capi_instance.enter_operation();
+    let capi_instance = cast_input_ptr!(instance_ptr, CapiInstance, "instance ptr is null", 0);
     let result = capi_instance.content.memory_length();
     match result {
         Ok(length) => length,
@@ -47,8 +50,12 @@ pub unsafe extern "C" fn vm_exec_instance_memory_data_length(
 pub unsafe extern "C" fn vm_exec_instance_memory_data(
     instance_ptr: *mut vm_exec_instance_t,
 ) -> *mut u8 {
-    let capi_instance = cast_capi_instance_ptr!(instance_ptr, ptr::null_mut());
-    let _operation_guard = capi_instance.enter_operation();
+    let capi_instance = cast_input_ptr!(
+        instance_ptr,
+        CapiInstance,
+        "instance ptr is null",
+        ptr::null_mut()
+    );
     let result = capi_instance.content.memory_ptr();
     match result {
         Ok(data) => data,
@@ -76,8 +83,7 @@ pub unsafe extern "C" fn vm_exec_instance_memory_grow(
     instance_ptr: *mut vm_exec_instance_t,
     by_num_pages: u32,
 ) -> vm_exec_result_t {
-    let capi_instance = cast_capi_instance_ptr!(instance_ptr);
-    let _operation_guard = capi_instance.enter_operation();
+    let capi_instance = cast_input_ptr!(instance_ptr, CapiInstance, "instance ptr is null");
     let grow_result = capi_instance.content.memory_grow(by_num_pages);
 
     match grow_result {

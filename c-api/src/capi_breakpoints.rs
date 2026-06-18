@@ -1,7 +1,7 @@
 use meta::capi_safe_unwind;
 use multiversx_chain_vm_executor::InstanceLegacy;
 
-use crate::capi_instance::vm_exec_instance_t;
+use crate::capi_instance::{CapiInstance, vm_exec_instance_t};
 use crate::service_singleton::with_service;
 use crate::vm_exec_result_t;
 
@@ -21,7 +21,7 @@ pub unsafe extern "C" fn vm_exec_instance_set_breakpoint_value(
     instance_ptr: *const vm_exec_instance_t,
     value: u64,
 ) -> vm_exec_result_t {
-    let capi_instance = cast_capi_instance_ptr!(instance_ptr);
+    let capi_instance = cast_input_const_ptr!(instance_ptr, CapiInstance, "instance ptr is null");
     let result = set_breakpoint_value_u64(capi_instance.content.as_ref(), value);
     match result {
         Ok(()) => vm_exec_result_t::VM_EXEC_OK,
@@ -43,7 +43,8 @@ pub unsafe extern "C" fn vm_exec_instance_set_breakpoint_value(
 pub unsafe extern "C" fn vm_exec_instance_get_breakpoint_value(
     instance_ptr: *const vm_exec_instance_t,
 ) -> u64 {
-    let capi_instance = cast_capi_instance_ptr!(instance_ptr, 0);
+    let capi_instance =
+        cast_input_const_ptr!(instance_ptr, CapiInstance, "instance ptr is null", 0);
     let result = capi_instance.content.get_breakpoint_value();
     match result {
         Ok(breakpoint_value) => breakpoint_value.as_u64(),

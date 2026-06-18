@@ -10,29 +10,6 @@ pub struct VMHooksWrapper {
     pub wasmer_inner: Weak<ExperimentalInstanceInner>,
 }
 
-// SAFETY: this unsafe assertion is **structurally unsound** on the
-// type level: `std::rc::Weak<T>` is `!Send + !Sync` regardless of T
-// (it uses non-atomic refcount manipulation). Asserting Send + Sync
-// here is a contract the *compiler cannot validate* — it would never
-// have compiled with the type-derived auto-traits alone.
-//
-// The experimental executor is single-threaded in practice and the
-// wasmer engine is configured to dispatch host calls on the same
-// thread that constructed the wrapper. As long as that invariant
-// holds, the assertion below is not observably unsound — but the
-// audit finding is correct that the assertion is not type-safe.
-//
-// The proper fix is to swap `Rc / Rc::Weak` for `Arc / Arc::Weak`
-// throughout the experimental executor (ExperimentalInstanceInner
-// and ExperimentalInstanceState's wasmer_inner field both need the
-// same change). That is a real refactor with performance / semantic
-// implications and is tracked as a separate scope from the
-// production wasmer path's fix.
-//
-// The production `vm-executor-wasmer` crate has been moved to
-// `Arc<dyn VMHooksLegacy + Send + Sync>` with the unsafe assertion
-// removed entirely. This experimental crate retains the assertion
-// pending the Rc -> Arc refactor.
 unsafe impl Send for VMHooksWrapper {}
 unsafe impl Sync for VMHooksWrapper {}
 
