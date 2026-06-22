@@ -4,6 +4,20 @@
 #include <stdlib.h>
 
 /**
+ * ABI version of the VM executor C API exposed by this crate. Increment
+ * on every breaking change to a `#[no_mangle] pub unsafe extern "C"`
+ * signature, struct layout, or semantic contract that crosses the FFI
+ * boundary into mx-chain-vm-go (or any other C-API consumer).
+ *
+ * Consumers should fetch this at process init via [`vm_exec_api_version`]
+ * and refuse to start on mismatch. See issues/ISSUE-020.
+ *
+ * History:
+ *   v1 — baseline (May 2026 audit pass).
+ */
+#define VM_EXEC_API_VERSION 1
+
+/**
  * The `wasmer_result_t` enum is a type that represents either a
  * success, or a failure.
  */
@@ -467,6 +481,11 @@ typedef struct vm_exec_vm_hook_c_func_pointers {
                                          int32_t address_handle,
                                          int32_t code_hash_handle);
   int32_t (*managed_is_builtin_function_func_ptr)(void *context, int32_t function_name_handle);
+  int32_t (*managed_drwa_sync_mirror_func_ptr)(void *context, int32_t payload_handle);
+  int32_t (*managed_drwa_native_governance_query_func_ptr)(void *context,
+                                                           int32_t query_type,
+                                                           int32_t key_handle,
+                                                           int32_t dest_handle);
   int32_t (*big_float_new_from_parts_func_ptr)(void *context,
                                                int32_t integral_part,
                                                int32_t fractional_part,
@@ -963,6 +982,13 @@ typedef struct vm_exec_opcode_cost_t {
 } vm_exec_opcode_cost_t;
 
 /**
+ * Returns the ABI version of the linked vm-executor C API. Consumers
+ * must compare this against the version they were built against and
+ * refuse to operate on mismatch. See issues/ISSUE-020.
+ */
+uint32_t vm_exec_api_version(void);
+
+/**
  * Sets the runtime breakpoint value for the given instance.
  *
  * This function returns `vm_exec_result_t::WASMER_OK` upon success,
@@ -1052,7 +1078,9 @@ enum vm_exec_result_t vm_exec_executor_set_vm_hooks_ptr(struct vm_exec_executor_
                                                         void *vm_hooks_ptr);
 
 /**
- * Destroys a VM executor object.
+ * Destroys a VM executor object. Safe under concurrent and repeated
+ * invocation because the incoming "pointer" is an opaque handle ID and
+ * the typed registry removes it at most once.
  *
  * # Safety
  *
@@ -1176,6 +1204,31 @@ void vm_exec_instance_destroy(struct vm_exec_instance_t *instance_ptr);
  * C API function, works with raw object pointers.
  */
 enum vm_exec_result_t vm_exec_instance_reset(struct vm_exec_instance_t *instance_ptr);
+
+/**
+ * Frees a cache buffer that was previously produced by
+ * [`vm_exec_instance_cache`].
+ *
+ * The cache function constructs a Rust `Vec<u8>` and hands its raw
+ * pointer + length to the C caller via `mem::forget`. Today the Go
+ * caller frees it with `C.free`, which only works because Rust's
+ * default `GlobalAlloc` happens to be the same system malloc that
+ * `libc::free` understands. Any future `#[global_allocator]` switch
+ * (jemallocator, mimalloc, custom) makes that pairing undefined
+ * behavior because the chunk metadata is allocator-specific.
+ *
+ * This export reclaims the Vec back through the SAME allocator that
+ * produced it, regardless of which global allocator is configured.
+ * The Go side should call this instead of `C.free` once the rebuilt
+ * `.so/.dylib` files include the symbol. See issues/ISSUE-009.
+ *
+ * # Safety
+ *
+ * `ptr` must be the exact pointer (and `len` the exact length) that
+ * `vm_exec_instance_cache` wrote into its out-params; otherwise
+ * `Vec::from_raw_parts` produces UB.
+ */
+void vm_exec_cache_free(uint8_t *ptr, uint32_t len);
 
 /**
  * Caches an instance.

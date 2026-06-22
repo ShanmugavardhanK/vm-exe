@@ -18,7 +18,10 @@ pub fn capi_safe_unwind(attr: TokenStream, item: TokenStream) -> TokenStream {
             let result = std::panic::catch_unwind(|| #body);
             match result {
                 Ok(result) => result,
-                Err(_) => #fail_return,
+                Err(payload) => {
+                    crate::capi_logger::record_panic_payload(payload.as_ref());
+                    #fail_return
+                },
             }
         }
     }

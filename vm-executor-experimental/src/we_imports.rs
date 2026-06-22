@@ -652,6 +652,16 @@ fn wasmer_import_managed_is_builtin_function(env: FunctionEnvMut<VMHooksWrapper>
 }
 
 #[rustfmt::skip]
+fn wasmer_import_managed_drwa_sync_mirror(env: FunctionEnvMut<VMHooksWrapper>, payload_handle: i32) -> Result<i32, VMHooksEarlyExit> {
+    with_vm_hooks(env, |vh| vh.managed_drwa_sync_mirror(payload_handle))
+}
+
+#[rustfmt::skip]
+fn wasmer_import_managed_drwa_native_governance_query(env: FunctionEnvMut<VMHooksWrapper>, query_type: i32, key_handle: i32, dest_handle: i32) -> Result<i32, VMHooksEarlyExit> {
+    with_vm_hooks(env, |vh| vh.managed_drwa_native_governance_query(query_type, key_handle, dest_handle))
+}
+
+#[rustfmt::skip]
 fn wasmer_import_big_float_new_from_parts(env: FunctionEnvMut<VMHooksWrapper>, integral_part: i32, fractional_part: i32, exponent: i32) -> Result<i32, VMHooksEarlyExit> {
     with_vm_hooks(env, |vh| vh.big_float_new_from_parts(integral_part, fractional_part, exponent))
 }
@@ -1589,6 +1599,8 @@ pub fn generate_import_object(store: &mut Store, vh_wrapper: VMHooksWrapper) -> 
             "managedGetCodeMetadata" => Function::new_typed_with_env(store, &function_env, wasmer_import_managed_get_code_metadata),
             "managedGetCodeHash" => Function::new_typed_with_env(store, &function_env, wasmer_import_managed_get_code_hash),
             "managedIsBuiltinFunction" => Function::new_typed_with_env(store, &function_env, wasmer_import_managed_is_builtin_function),
+            "managedDRWASyncMirror" => Function::new_typed_with_env(store, &function_env, wasmer_import_managed_drwa_sync_mirror),
+            "managedDRWANativeGovernanceQuery" => Function::new_typed_with_env(store, &function_env, wasmer_import_managed_drwa_native_governance_query),
             "bigFloatNewFromParts" => Function::new_typed_with_env(store, &function_env, wasmer_import_big_float_new_from_parts),
             "bigFloatNewFromFrac" => Function::new_typed_with_env(store, &function_env, wasmer_import_big_float_new_from_frac),
             "bigFloatNewFromSci" => Function::new_typed_with_env(store, &function_env, wasmer_import_big_float_new_from_sci),

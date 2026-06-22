@@ -1,5 +1,5 @@
-use crate::capi_executor::{CapiExecutor, vm_exec_executor_t};
-use crate::capi_instance::{CapiInstance, vm_exec_instance_t};
+use crate::capi_executor::vm_exec_executor_t;
+use crate::capi_instance::vm_exec_instance_t;
 use crate::service_singleton::with_service;
 use crate::vm_exec_result_t;
 use meta::capi_safe_unwind;
@@ -25,10 +25,15 @@ pub unsafe extern "C" fn vm_exec_set_opcode_costs(
     executor_ptr: *mut vm_exec_executor_t,
     opcode_cost_ptr: *const vm_exec_opcode_cost_t,
 ) -> vm_exec_result_t {
-    let capi_executor = cast_input_ptr!(executor_ptr, CapiExecutor, "executor ptr is null");
+    let capi_executor = cast_capi_executor_ptr!(executor_ptr);
     let opcode_costs: &OpcodeCost = unsafe { &*(opcode_cost_ptr as *const OpcodeCost) };
 
-    let result = capi_executor.content.set_opcode_cost(opcode_costs);
+    // ISSUE-001 closure: lock the Mutex for the trait's &mut self method.
+    let mut content_guard = capi_executor
+        .content
+        .lock()
+        .expect("CapiExecutor.content mutex poisoned");
+    let result = content_guard.set_opcode_cost(opcode_costs);
     match result {
         Ok(()) => vm_exec_result_t::VM_EXEC_OK,
         Err(message) => {
@@ -54,7 +59,8 @@ pub unsafe extern "C" fn vm_exec_instance_set_points_limit(
     instance_ptr: *const vm_exec_instance_t,
     limit: u64,
 ) -> vm_exec_result_t {
-    let capi_instance = cast_input_const_ptr!(instance_ptr, CapiInstance, "instance ptr is null");
+    let capi_instance = cast_capi_instance_ptr!(instance_ptr);
+    let _operation_guard = capi_instance.enter_operation();
     let result = capi_instance.content.set_points_limit(limit);
     match result {
         Ok(()) => vm_exec_result_t::VM_EXEC_OK,
@@ -81,7 +87,8 @@ pub unsafe extern "C" fn vm_exec_instance_set_points_used(
     instance_ptr: *const vm_exec_instance_t,
     points: u64,
 ) -> vm_exec_result_t {
-    let capi_instance = cast_input_const_ptr!(instance_ptr, CapiInstance, "instance ptr is null");
+    let capi_instance = cast_capi_instance_ptr!(instance_ptr);
+    let _operation_guard = capi_instance.enter_operation();
     let result = capi_instance.content.set_points_used(points);
     match result {
         Ok(()) => vm_exec_result_t::VM_EXEC_OK,
@@ -103,8 +110,8 @@ pub unsafe extern "C" fn vm_exec_instance_set_points_used(
 pub unsafe extern "C" fn vm_exec_instance_get_points_used(
     instance_ptr: *const vm_exec_instance_t,
 ) -> u64 {
-    let capi_instance =
-        cast_input_const_ptr!(instance_ptr, CapiInstance, "instance ptr is null", 0);
+    let capi_instance = cast_capi_instance_ptr!(instance_ptr, 0);
+    let _operation_guard = capi_instance.enter_operation();
     let result = capi_instance.content.get_points_used();
     match result {
         Ok(points) => points,

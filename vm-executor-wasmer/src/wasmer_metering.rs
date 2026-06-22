@@ -197,8 +197,8 @@ impl FunctionMiddleware for FunctionMetering {
         if count > unmetered_locals {
             let metered_locals = count - unmetered_locals;
             let local_cost = get_local_cost(&self.opcode_cost.lock().unwrap());
-            let metered_locals_cost = metered_locals * local_cost;
-            self.accumulated_cost += metered_locals_cost as u64;
+            let metered_locals_cost = u64::from(metered_locals) * u64::from(local_cost);
+            self.accumulated_cost += metered_locals_cost;
         }
 
         Ok(())
@@ -226,4 +226,34 @@ fn check_local_count_exceeded(count: u32) -> Result<(), MiddlewareError> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::executor_interface::OpcodeCost;
+
+    #[test]
+    fn feed_local_count_multiplies_in_u64_without_wrapping() {
+        let opcode_cost = Arc::new(Mutex::new(OpcodeCost {
+            opcode_localallocate: u32::MAX,
+            ..OpcodeCost::default()
+        }));
+        let breakpoints_middleware = Arc::new(Breakpoints::new());
+        let global_indexes = MeteringGlobalIndexes {
+            points_limit_global_index: GlobalIndex::from_u32(0),
+            points_used_global_index: GlobalIndex::from_u32(1),
+        };
+        let mut metering = FunctionMetering {
+            accumulated_cost: 0,
+            unmetered_locals: 0,
+            opcode_cost,
+            breakpoints_middleware,
+            global_indexes,
+        };
+
+        metering.feed_local_count(4000).unwrap();
+
+        assert_eq!(metering.accumulated_cost, u64::from(u32::MAX) * 4000);
+    }
 }

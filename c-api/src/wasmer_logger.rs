@@ -15,16 +15,18 @@ impl log::Log for WasmerLogger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
+            let file = record
+                .file()
+                .unwrap_or("?")
+                .rsplit_terminator('/')
+                .next()
+                .unwrap_or("?");
+
             println!(
                 "{:<5}[{}] [{}]\t{}",
                 record.level(),
                 Local::now().format("%Y-%m-%d %H:%M:%S:%3f"),
-                record
-                    .file()
-                    .unwrap()
-                    .rsplit_terminator('/')
-                    .next()
-                    .unwrap(),
+                file,
                 record.args()
             );
         }
@@ -35,12 +37,15 @@ impl log::Log for WasmerLogger {
 
 pub fn init(log_level: LevelFilter) {
     INIT.call_once(|| {
-        log::set_boxed_logger(Box::new(WasmerLogger))
+        if log::set_boxed_logger(Box::new(WasmerLogger))
             .map(|()| {
                 log::set_max_level(log_level);
                 trace!("Initializing WasmerLogger with {log_level} ...");
             })
-            .unwrap();
+            .is_err()
+        {
+            log::set_max_level(log_level);
+        }
     });
 }
 
@@ -134,5 +139,17 @@ pub mod test {
 
         let result = u64_to_log_level(6);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_log_record_without_file_does_not_panic() {
+        let args = format_args!("record without file metadata");
+        let record = Record::builder()
+            .args(args)
+            .level(Level::Info)
+            .target("wasmer_logger_test")
+            .build();
+
+        log::Log::log(&WasmerLogger, &record);
     }
 }

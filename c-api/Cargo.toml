@@ -12,7 +12,6 @@ meta = { path = "../meta" }
 multiversx-chain-vm-executor = { path = "../vm-executor" }
 multiversx-chain-vm-executor-wasmer = { path = "../vm-executor-wasmer" }
 
-lazy_static = "1.4"
 libc = { version = "^0.2", default-features = false }
 
 chrono = "0.4.23"
